@@ -1,0 +1,3 @@
+"""
+WeatherGPT application package.
+"""

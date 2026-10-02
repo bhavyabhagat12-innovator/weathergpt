@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WeatherGPT — India Weather Intelligence Platform</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌤️</text></svg>">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Navigation Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo">🌤️</div>
+        <div class="brand-text">
+          <h1>WeatherGPT</h1>
+          <p class="subtitle">India Weather Intelligence Platform</p>
+        </div>
+      </div>
+
+      <!-- App Navigation Tabs -->
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-view="chat" id="tab-chat">
+          <span class="tab-icon">💬</span> Assistant
+        </button>
+        <button class="nav-tab" data-view="dashboard" id="tab-dashboard">
+          <span class="tab-icon">📊</span> Dashboard
+        </button>
+        <button class="nav-tab" data-view="alerts" id="tab-alerts">
+          <span class="tab-icon">🚨</span> Alerts EOC
+        </button>
+        <button class="nav-tab" data-view="climate" id="tab-climate">
+          <span class="tab-icon">📈</span> Climate
+        </button>
+        <button class="nav-tab" data-view="briefing" id="tab-briefing">
+          <span class="tab-icon">✈️</span> Operations
+        </button>
+      </nav>
+
+      <!-- Language & Live Alerts Status -->
+      <div class="header-controls">
+        <select id="lang-select" class="lang-dropdown" title="Select Advisory Language">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+        </select>
+        <div class="header-status" id="ws-status-badge">
+          <span class="live-dot"></span> <span id="conn-status">Live Alerts</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Emergency Push Alert Banner (WebSocket connected) -->
+    <div id="live-alert-banner" class="emergency-banner hidden">
+      <div class="banner-icon">🚨</div>
+      <div class="banner-content">
+        <strong id="banner-title">IMD Severe Bulletin</strong>
+        <span class="banner-text" id="banner-text">Monitoring weather advisories across India...</span>
+      </div>
+      <button class="banner-btn" id="banner-ask-btn" title="Ask WeatherGPT about this emergency">Ask Advisor</button>
+      <button class="banner-close" id="banner-close" title="Dismiss banner">✕</button>
+    </div>
+
+    <!-- MAIN VIEWS WRAPPER -->
+    <div class="views-wrapper">
+
+      <!-- ===============================================================
+           VIEW 1: CHAT ASSISTANT
+      =============================================================== -->
+      <section class="view-panel active" id="view-chat">
+        <!-- Role Persona Bar -->
+        <div class="persona-bar">
+          <span class="persona-label">Decision Persona:</span>
+          <div class="role-pills" id="role-pills">
+            <button class="role-pill active" data-role="general">🏙️ General</button>
+            <button class="role-pill" data-role="agriculture">🌾 Agriculture</button>
+            <button class="role-pill" data-role="aviation">✈️ Aviation</button>
+            <button class="role-pill" data-role="marine">⚓ Marine</button>
+            <button class="role-pill" data-role="disaster_management">🚨 Disaster EOC</button>
+          </div>
+        </div>
+
+        <!-- Suggested Query Chips -->
+        <div class="suggestions-container" id="suggestions">
+          <!-- Injected dynamically by role and language -->
+        </div>
+
+        <!-- Chat Messages Viewport -->
+        <main class="chat-viewport" id="chat-viewport">
+          <div class="message-bubble assistant welcome-card">
+            <div class="sender-tag">WeatherGPT Grounded Engine • Zero Hallucination</div>
+            <p>Namaste! I am <strong>WeatherGPT</strong>. I ingest real-time observations, 7-day high-resolution forecasts, NOAA GFS gridded NWP models, and IMD national warning bulletins to provide localized, actionable weather advisories.</p>
+            <p class="subtext">Select your decision persona above, speak with the 🎤 mic button, or tap any suggestion chip to begin.</p>
+          </div>
+        </main>
+
+        <!-- Chat Input Form -->
+        <footer class="input-container">
+          <form id="chat-form">
+            <button type="button" id="mic-btn" class="voice-btn" title="Speak query (Voice STT)">
+              🎤
+            </button>
+            <input 
+              type="text" 
+              id="query-input" 
+              placeholder="Ask a weather question or tap 🎤 to speak..." 
+              autocomplete="off"
+              required
+            >
+            <button type="submit" id="send-btn" title="Send Message">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </form>
+        </footer>
+      </section>
+
+
+      <!-- ===============================================================
+           VIEW 2: LIVE TELEMETRY & MODEL DASHBOARD
+      =============================================================== -->
+      <section class="view-panel" id="view-dashboard">
+        <div class="dashboard-header">
+          <div class="search-box-row">
+            <input 
+              type="text" 
+              id="dash-search-input" 
+              class="dash-input" 
+              placeholder="Search Indian city, district, or port (e.g. Pune, Nashik, Chennai)..."
+              value="Delhi"
+            >
+            <button type="button" id="dash-search-btn" class="primary-btn">
+              🔍 Inspect Weather
+            </button>
+          </div>
+
+          <!-- Quick City Chips -->
+          <div class="quick-cities" id="dash-quick-cities">
+            <span class="quick-label">Popular:</span>
+            <button class="city-chip active" data-city="Delhi">Delhi</button>
+            <button class="city-chip" data-city="Mumbai">Mumbai</button>
+            <button class="city-chip" data-city="Bengaluru">Bengaluru</button>
+            <button class="city-chip" data-city="Chennai">Chennai</button>
+            <button class="city-chip" data-city="Kolkata">Kolkata</button>
+            <button class="city-chip" data-city="Hyderabad">Hyderabad</button>
+            <button class="city-chip" data-city="Pune">Pune</button>
+            <button class="city-chip" data-city="Nashik">Nashik</button>
+            <button class="city-chip" data-city="Visakhapatnam">Visakhapatnam</button>
+          </div>
+        </div>
+
+        <div id="dash-content" class="dash-content-area">
+          <div class="loading-spinner">Loading weather telemetry...</div>
+        </div>
+      </section>
+
+
+      <!-- ===============================================================
+           VIEW 3: DISASTER EOC & SEVERE ALERT SIMULATOR
+      =============================================================== -->
+      <section class="view-panel" id="view-alerts">
+        <div class="eoc-layout">
+          <!-- Left Column: Active Alerts Feed -->
+          <div class="eoc-column">
+            <div class="section-title-row">
+              <h2>🚨 Active IMD Warning Bulletins</h2>
+              <button type="button" id="refresh-alerts-btn" class="icon-btn" title="Refresh active alerts">🔄</button>
+            </div>
+
+            <!-- Severity Counters -->
+            <div class="alert-stats-grid">
+              <div class="stat-card red">
+                <span class="stat-num" id="stat-red">0</span>
+                <span class="stat-name">Red Alerts</span>
+              </div>
+              <div class="stat-card orange">
+                <span class="stat-num" id="stat-orange">0</span>
+                <span class="stat-name">Orange Alerts</span>
+              </div>
+              <div class="stat-card yellow">
+                <span class="stat-num" id="stat-yellow">0</span>
+                <span class="stat-name">Yellow Alerts</span>
+              </div>
+            </div>
+
+            <div id="alerts-list-container" class="alerts-list">
+              <div class="loading-spinner">Fetching active national bulletins...</div>
+            </div>
+          </div>
+
+          <!-- Right Column: Interactive Alert Simulator -->
+          <div class="eoc-column">
+            <div class="section-title-row">
+              <h2>⚡ Emergency Hazard Simulator</h2>
+            </div>
+            <p class="section-desc">Test real-time emergency dissemination. Triggering a simulation instantly classifies meteorological thresholds and broadcasts via WebSockets to all connected clients.</p>
+
+            <div class="simulation-triggers">
+              <h3>One-Click Operational Scenarios:</h3>
+              <div class="preset-buttons">
+                <button class="sim-btn red" id="sim-cyclone-btn">
+                  🌀 <strong>Bay of Bengal Severe Cyclone</strong>
+                  <span>120 km/h wind gusts, coastal storm surge, fishing ban</span>
+                </button>
+
+                <button class="sim-btn orange" id="sim-rain-btn">
+                  🌧️ <strong>Konkan Cloudburst & Flash Flood</strong>
+                  <span>220 mm / 24h extreme rainfall, ghats landslide warning</span>
+                </button>
+
+                <button class="sim-btn yellow" id="sim-heat-btn">
+                  ☀️ <strong>Vidarbha Severe Heatwave Emergency</strong>
+                  <span>47.2°C temperature, red alert heat distress advisory</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Bulletin Form -->
+            <div class="custom-sim-box">
+              <h3>Custom Bulletin Ingestion:</h3>
+              <textarea 
+                id="custom-bulletin-text" 
+                rows="3" 
+                placeholder="Paste raw IMD warning bulletin text..."
+              ></textarea>
+              <div class="form-row">
+                <input type="text" id="custom-bulletin-state" placeholder="State (e.g. Gujarat)" value="Gujarat">
+                <input type="text" id="custom-bulletin-district" placeholder="District (e.g. Kutch)" value="Kutch">
+                <button type="button" id="custom-sim-submit" class="primary-btn">Ingest & Broadcast</button>
+              </div>
+            </div>
+
+            <!-- Live WebSocket Packet Log -->
+            <div class="ws-log-box">
+              <div class="log-header">
+                <span>📡 Live WebSocket Event Stream</span>
+                <span id="ws-event-count">0 events</span>
+              </div>
+              <div class="log-entries" id="ws-log-entries">
+                <div class="log-entry system">Listening on /ws/alerts...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ===============================================================
+           VIEW 4: CLIMATE ARCHIVE & ERA5 TRENDS
+      =============================================================== -->
+      <section class="view-panel" id="view-climate">
+        <div class="climate-layout">
+          <div class="climate-controls-card">
+            <h2>📈 ERA5 Historical Monsoon Archive</h2>
+            <p class="section-desc">Explore multi-year Southwest Monsoon (JJAS) rainfall anomalies, deficit seasons, and climate shifts against IMD Long Period Average (LPA Normal).</p>
+
+            <div class="climate-form-row">
+              <div class="form-group">
+                <label for="climate-region-select">Select Meteorological Division / Region:</label>
+                <select id="climate-region-select" class="styled-select">
+                  <option value="Nashik">Nashik / Northern Maharashtra (Godavari Basin)</option>
+                  <option value="Nagpur">Nagpur / Vidarbha (Central India)</option>
+                  <option value="Mumbai">Konkan & Goa / Mumbai Coastal Division</option>
+                  <option value="Visakhapatnam">Coastal Andhra Pradesh</option>
+                  <option value="Chennai">Tamil Nadu & Puducherry</option>
+                  <option value="Delhi">Northwest India (Delhi NCR)</option>
+                  <option value="Bengaluru">South Interior Karnataka</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="climate-years-select">Historical Horizon:</label>
+                <select id="climate-years-select" class="styled-select">
+                  <option value="5">5 Years (2020 – 2024)</option>
+                  <option value="7" selected>7 Years (2018 – 2024)</option>
+                  <option value="10">10 Years (2015 – 2024)</option>
+                </select>
+              </div>
+
+              <button type="button" id="climate-analyze-btn" class="primary-btn">
+                📊 Generate Monsoon Anomaly Chart
+              </button>
+            </div>
+          </div>
+
+          <div id="climate-chart-container" class="climate-chart-display">
+            <div class="placeholder-card">
+              <p>Click <strong>Generate Monsoon Anomaly Chart</strong> to view multi-year ERA5 precipitation trends.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ===============================================================
+           VIEW 5: AVIATION & MARITIME OPERATIONS CONSOLE
+      =============================================================== -->
+      <section class="view-panel" id="view-briefing">
+        <div class="briefing-layout">
+          
+          <!-- Sub-mode switcher -->
+          <div class="briefing-toggle">
+            <button class="briefing-tab active" data-mode="aviation" id="mode-aviation">
+              ✈️ Aviation Meteorological Briefing (AMO)
+            </button>
+            <button class="briefing-tab" data-mode="marine" id="mode-marine">
+              ⚓ Marine & Coastal Safety Watch
+            </button>
+          </div>
+
+          <!-- Sub-view 1: Aviation Console -->
+          <div class="briefing-content active" id="sub-aviation">
+            <div class="station-select-bar">
+              <label>Select Airport Terminal:</label>
+              <div class="station-pills" id="aviation-stations">
+                <button class="station-pill active" data-station="Delhi">DEL (Indira Gandhi Intl)</button>
+                <button class="station-pill" data-station="Mumbai">BOM (Chhatrapati Shivaji Intl)</button>
+                <button class="station-pill" data-station="Bengaluru">BLR (Kempegowda Intl)</button>
+                <button class="station-pill" data-station="Chennai">MAA (Chennai Intl)</button>
+                <button class="station-pill" data-station="Kolkata">CCU (Netaji Subhash Chandra Bose)</button>
+                <button class="station-pill" data-station="Hyderabad">HYD (Rajiv Gandhi Intl)</button>
+                <button class="station-pill" data-station="Pune">PNQ (Pune International)</button>
+              </div>
+            </div>
+
+            <div id="aviation-display-area" class="briefing-display-card">
+              <div class="loading-spinner">Computing aviation briefing...</div>
+            </div>
+          </div>
+
+          <!-- Sub-view 2: Marine Console -->
+          <div class="briefing-content" id="sub-marine">
+            <div class="station-select-bar">
+              <label>Select Coastal Station / Port:</label>
+              <div class="station-pills" id="marine-stations">
+                <button class="station-pill active" data-station="Visakhapatnam">Visakhapatnam Port</button>
+                <button class="station-pill" data-station="Mumbai">Mumbai JNPT Port</button>
+                <button class="station-pill" data-station="Chennai">Chennai Port</button>
+                <button class="station-pill" data-station="Kochi">Cochin Port</button>
+                <button class="station-pill" data-station="Paradip">Paradip Port</button>
+              </div>
+            </div>
+
+            <div id="marine-display-area" class="briefing-display-card">
+              <div class="loading-spinner">Computing maritime advisory...</div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div> <!-- /views-wrapper -->
+
+  </div> <!-- /app-container -->
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

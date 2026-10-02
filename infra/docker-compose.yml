@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with PostGIS extension for structured geospatial data
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: weathergpt-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: weathergpt
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d weathergpt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB for raw unstructured disaster bulletins and satellite products
+  mongo:
+    image: mongo:7.0
+    container_name: weathergpt-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # WeatherGPT FastAPI backend service
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: weathergpt-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgrespassword@postgres:5432/weathergpt
+      - MONGODB_URL=mongodb://mongo:27017/weathergpt
+      - LLM_PROVIDER=gemini
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  mongodata:
