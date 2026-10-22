@@ -2,6 +2,7 @@
 
 WeatherGPT is a ChatGPT-style conversational assistant that unifies scattered weather data — live observations, NWP model output (GFS/WRF), satellite products, and disaster-warning feeds — into one natural-language interface.
 
+Try it live : https://weathergpt-ai-bbi12.onrender.com/
 ## Monorepo Structure
 
 ```
