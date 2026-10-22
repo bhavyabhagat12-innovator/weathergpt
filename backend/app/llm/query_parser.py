@@ -49,7 +49,7 @@ ROLE_KEYWORDS = {
 VARIABLE_KEYWORDS = {
     "precipitation": [
         "rain", "raining", "rainfall", "drizzle", "shower", "downpour", "precipitation",
-        "बारिश", "वर्षा", "पानी", "बूंदाबांदी", "पाऊस", "मழை", "மழைப்பொழிவு", "వర్షం", "వాన"
+        "बारिश", "वर्षा", "पानी", "बूंदाबांदी", "पाऊस", "மழை", "மழைப்பொழிவு", "వర్షం", "వాన"
     ],
     "temperature": [
         "temp", "temperature", "hot", "cold", "heat", "heatwave", "warm", "chill",
@@ -102,22 +102,32 @@ class RuleBasedQueryParser:
     """Robust multilingual query intent parser."""
 
     @classmethod
+    def detect_location(cls, query: str) -> Optional[str]:
+        """Return the city found in the query, or None if there isn't one."""
+        clean = query.lower().strip()
+        for city_key, resolved_city in INDIAN_CITIES_MAP.items():
+            if city_key in clean:
+                return resolved_city
+        loc_match = re.search(
+            r"\b(?:in|at|for|near|में|मध्ये|இல்|లో)\s+([a-zA-Z\u0900-\u0D7F\s]+?)(?:\s+(?:today|tomorrow|now|this|for|with|\?|$|आज|कल|उद्या))",
+            query,
+        )
+        if loc_match:
+            extracted = loc_match.group(1).strip()
+            if len(extracted) > 2:
+                return extracted.title()
+        return None
+
+    @classmethod
     def parse(cls, query: str, default_role: Optional[DomainRole] = None) -> QueryIntent:
         clean = query.lower().strip()
         detected_lang = LanguageDetector.detect_language(query)
 
         # 1. Detect location (supports English and Indian scripts)
-        location = "Nashik" # sensible default
-        for city_key, resolved_city in INDIAN_CITIES_MAP.items():
-            if city_key in clean:
-                location = resolved_city
-                break
-        else:
-            loc_match = re.search(r"\b(?:in|at|for|near|में|मध्ये|இல்|లో)\s+([a-zA-Z\u0900-\u0D7F\s]+?)(?:\s+(?:today|tomorrow|now|this|for|with|\?|$|आज|कल|उद्या))", query)
-            if loc_match:
-                extracted = loc_match.group(1).strip()
-                if len(extracted) > 2:
-                    location = extracted.title()
+        # Falls back to Nashik so the rest of the pipeline keeps working.
+        # The chat endpoint should call detect_location() first and ask the
+        # user for a city when it returns None.
+        location = cls.detect_location(query) or "Nashik"
 
         # 2. Detect target variables
         detected_vars = []
@@ -151,4 +161,3 @@ class RuleBasedQueryParser:
             language=detected_lang,
             confidence=0.95
         )
-
