@@ -558,7 +558,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const dIcon = getWeatherIcon(day.weather_condition);
       return `
         <div class="forecast-card">
-          <div class="forecast-date">${day.date.split("-").slice(1).join("/")}</div>
+          <div class="forecast-date">${String(day.date || day.time || day.forecast_date || day.day || "").split("T")[0].split("-").slice(1).join("/")}</div>
           <div class="forecast-icon">${dIcon}</div>
           <div class="forecast-temp">${Math.round(day.temp_max_c)}° / ${Math.round(day.temp_min_c)}°</div>
           <div class="forecast-rain">${day.rain_probability_pct}% rain</div>
